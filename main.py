@@ -6,18 +6,20 @@ import numpy as np
 import pandas as pd
 import csv
 from collections import OrderedDict
+import cv2
+import glob
 
 
 PRE_PRUNE_PATH = "bsauberman.csv"
 POST_PRUNE_PATH = 'bsauberman_pruned.csv'
 
-curr_row = 0
+#curr_row = 0
 df = pd.read_csv(POST_PRUNE_PATH)
 
 def update_counts(curr_row):
-    curr_day = df['DateTime'][curr_row]
+    curr_day = df['DateTime'][curr_row][:-6]
 
-    day = df['DateTime'][curr_row]
+    day = df['DateTime'][curr_row][:-6]
     artist = df['Artist'][curr_row]
 
     while artist and day and curr_day == day:
@@ -27,13 +29,12 @@ def update_counts(curr_row):
         artists[artist] = artists[artist] + 1
         #print(artist + ' count is now ' + str(artists[artist]))
 
-        curr_row = curr_row + 1
-        if curr_row < len(df):
-            day = df['DateTime'][curr_row]
+        curr_row = curr_row - 1
+        if curr_row > -1:
+            day = df['DateTime'][curr_row][:-6]
             artist = df['Artist'][curr_row]
         else: break
-
-    return curr_row, artists
+    return curr_row, artists, curr_day
 
 def prune_csv():
     csvreader = csv.reader(open(PRE_PRUNE_PATH))
@@ -63,83 +64,72 @@ def get_top_artists(data, n=10, order=True):
     return dict(top_artists)
 
 def get_data():
-    for curr_row in range(len(df)-1, 0, -1):
-        print(curr_row)
-        if curr_row < 0:
-            break
-        curr_row = update_counts(curr_row)
-        top_artists = get_top_artists(artists, 10, True)
+    curr_row = len(df)-1
+    while curr_row > -1:
+        curr_row, artists, curr_day = update_counts(curr_row)
+        curr_top_artists = get_top_artists(artists, 10, True)
     
-        #create_image(top_artists)
+        create_image(curr_top_artists, curr_row, curr_day)
+    create_video()
 
-def newanimate():
+def change_date_format(date):
+    months = {
+        'Jan': '01',
+        'Feb': '02',
+        'Mar': '03',
+        'Apr': '04',
+        'May': '05',
+        'Jun': '06',
+        'Jul': '07',
+        'Aug': '08',
+        'Sep': '09',
+        'Oct': '10',
+        'Nov': '11',
+        'Dec': '12'
+        }
+    day, month, year = date.split()
+    month = months[month]
+    return year + "-" + month + "-" + day
 
+
+def create_image(curr_top_artists, curr_row, curr_day):
     # Initialize the matplotlib figure
-    f, ax = plt.subplots(figsize=(6, 15))
+    f, ax = plt.subplots(figsize=(40, 30))
+    plt.rcParams.update({'font.size': 25})
 
     # Plot the total crashes
-    sns.set_color_codes("pastel")
-    keys = list(artists.keys())
+    sns.color_palette("rocket", as_cmap=True)
+    keys = list(curr_top_artists.keys())
     # get values in the same order as keys, and parse percentage values
-    vals = [float(artists[k][:-1]) for k in keys]
-    sns_plot = sns.barplot(x=keys, y=vals)
+    vals = [float(curr_top_artists[k]) for k in keys]
+    pal = sns.color_palette("rocket", len(vals))
+    rank = np.array(vals).argsort().argsort()  # http://stackoverflow.com/a/6266510/1628638
+    sns_plot = sns.barplot(x=vals, y=keys, palette=np.array(pal[::-1])[rank])
 
-    #sns.barplot(x=artists.values(), y=artists.keys(), data=artists,
-                #label="Total", color="b")
+    plt.title(curr_day)
 
-
-    # Add a legend and informative axis label
-    ax.legend(ncol=2, loc="lower right", frameon=True)
-    ax.set(xlim=(0, 24), ylabel="",
-        xlabel="Automobile collisions per billion miles")
-    sns.despine(left=True, bottom=True)
     fig = sns_plot.get_figure()
-    fig.savefig("/images.output.png")
+    fig.savefig("images/" +change_date_format(curr_day)+".png")
+    print(curr_day)
 
+def create_video():
+    frameSize = (4000,3000)
+    fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+    out = cv2.VideoWriter('output.mp4', fourcc, 20.0, frameSize)
+    count = 0
 
+    for filename in sorted(glob.glob('images/*.png')):
+        img = cv2.imread(filename)
+        out.write(img)
+        print(filename)
+        count = count + 1
+        #if count > 20: break
+
+    out.release()
+    print('released')
 
 artists = {}
 print("here we go!!")
 #prune_csv()
-#get_data()
+get_data()
 #create_visualizer()
-
-
-import matplotlib.pyplot as plt
-from matplotlib import animation
-
-fig=plt.figure()
-axes = fig.add_subplot(1,1,1)
-axes.set_xlim(0, 500)
-plt.style.use("seaborn")
-axes.set_xlabel("Plays")
-
-n=100 #Number of frames
-x= get_top_artists(artists, 10, True).keys()
-barcollection = plt.bar(x, get_top_artists(artists, 10, True).values())
-
-def animate(i):
-    global curr_row
-    curr_row, artists = update_counts(curr_row)
-    top_artists = get_top_artists(artists, 10, True)
-    plt.bar(top_artists.keys(), top_artists.values())
-
-anim=animation.FuncAnimation(fig, animate, repeat=False, blit=False,
-                             interval=10)
-plt.show()
-
-f = "lastfm_visualizr.gif" 
-writergif = animation.PillowWriter(fps=30) 
-anim.save(f, writer=writergif)
-
-
-
-
-# import imageio
-# images = []
-# for filename in filenames:
-#     images.append(imageio.imread(filename))
-# imageio.mimsave('lastfm_visualizer.gif', images)
-
-
-
