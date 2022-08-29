@@ -115,7 +115,7 @@ def create_image(curr_top_artists, curr_row, curr_day):
 def create_video():
     frameSize = (4000,3000)
     fourcc = cv2.VideoWriter_fourcc(*'MP4V')
-    out = cv2.VideoWriter('output.mp4', fourcc, 20.0, frameSize)
+    out = cv2.VideoWriter('output.mp4', fourcc, 40, frameSize)
     count = 0
 
     for filename in sorted(glob.glob('images/*.png')):
@@ -131,5 +131,5 @@ def create_video():
 artists = {}
 print("here we go!!")
 #prune_csv()
-get_data()
-#create_visualizer()
+#get_data()
+create_video()
