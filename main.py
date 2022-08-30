@@ -21,20 +21,33 @@ def update_counts(curr_row):
 
     day = df['DateTime'][curr_row][:-6]
     artist = df['Artist'][curr_row]
+    album = df['Album'][curr_row]
+    song = df['Song'][curr_row]
 
-    while artist and day and curr_day == day:
+
+    while artist and album and song and day and curr_day == day:
         if artist not in artists.keys():
             artists[artist] = 0
+        if album not in albums.keys():
+            albums[album] = 0
+        if song not in songs.keys():
+            songs[song] = 0
             #print(artist + ' added to keys with count of 0')
         artists[artist] = artists[artist] + 1
+        albums[album] = albums[album] + 1
+        songs[song] = songs[song] + 1
+
         #print(artist + ' count is now ' + str(artists[artist]))
 
         curr_row = curr_row - 1
         if curr_row > -1:
             day = df['DateTime'][curr_row][:-6]
             artist = df['Artist'][curr_row]
+            album = df['Album'][curr_row]
+            song = df['Song'][curr_row]
+
         else: break
-    return curr_row, artists, curr_day
+    return curr_row, curr_day
 
 def prune_csv():
     csvreader = csv.reader(open(PRE_PRUNE_PATH))
@@ -42,34 +55,35 @@ def prune_csv():
 
     # Deal with the header
     header = next(csvreader)
-    header.append('Passed')
     csvwriter.writerow(header)
-    prev_row = next(csvreader)
     # Process data rows
     for row in csvreader:
-        if row[3]: row[3] = str(row[3])
-        if row[0]: row[0] = str(row[0])
-        if not row[3]: row[3] = prev_row[3]
-        if not row[0]: row[0] = prev_row[1]
-        prev_row = row
-
-        csvwriter.writerow(row)    
+        # if row[3]: row[3] = str(row[3])
+        # if row[0]: row[0] = str(row[0])
+        if not row[0] or not row[1] or not row[2] or not row[3]: 
+            continue
+        else:
+            csvwriter.writerow(row)    
         
 
-def get_top_artists(data, n=10, order=True):
+def get_top(n=10):
 
-    top_artists = sorted(data.items(), key=lambda x: x[1], reverse=True)[:n]
-    if order:
-        return OrderedDict(top_artists)
-    return dict(top_artists)
+    top_artists = sorted(artists.items(), key=lambda x: x[1], reverse=True)[:n]
+    top_albums = sorted(albums.items(), key=lambda x: x[1], reverse=True)[:n]
+    top_songs = sorted(songs.items(), key=lambda x: x[1], reverse=True)[:n]
+
+    return OrderedDict(top_artists), OrderedDict(top_albums), OrderedDict(top_songs)
 
 def get_data():
     curr_row = len(df)-1
     while curr_row > -1:
-        curr_row, artists, curr_day = update_counts(curr_row)
-        curr_top_artists = get_top_artists(artists, 10, True)
+        curr_row, curr_day = update_counts(curr_row)
+        curr_top_artists, curr_top_albums, curr_top_songs = get_top(10)
     
-        create_image(curr_top_artists, curr_row, curr_day)
+        create_image('artists', curr_top_artists, curr_row, curr_day)
+        create_image('albums', curr_top_albums, curr_row, curr_day)
+        create_image('songs', curr_top_songs, curr_row, curr_day)
+
     create_video()
 
 def change_date_format(date):
@@ -92,33 +106,33 @@ def change_date_format(date):
     return year + "-" + month + "-" + day
 
 
-def create_image(curr_top_artists, curr_row, curr_day):
+def create_image(type, curr_top, curr_row, curr_day):
     # Initialize the matplotlib figure
     f, ax = plt.subplots(figsize=(40, 30))
     plt.rcParams.update({'font.size': 25})
+    plt.title(curr_day)
 
-    # Plot the total crashes
-    sns.color_palette("rocket", as_cmap=True)
-    keys = list(curr_top_artists.keys())
-    # get values in the same order as keys, and parse percentage values
-    vals = [float(curr_top_artists[k]) for k in keys]
+    keys = list(curr_top.keys())
+    vals = [float(curr_top[k]) for k in keys]
+
     pal = sns.color_palette("rocket", len(vals))
     rank = np.array(vals).argsort().argsort()  # http://stackoverflow.com/a/6266510/1628638
     sns_plot = sns.barplot(x=vals, y=keys, palette=np.array(pal[::-1])[rank])
-
-    plt.title(curr_day)
+    #palette=np.array(pal[::-1])[rank]
 
     fig = sns_plot.get_figure()
-    fig.savefig("images/" +change_date_format(curr_day)+".png")
+    fig.savefig(type+"/"+change_date_format(curr_day)+".png")
     print(curr_day)
 
-def create_video():
+
+
+def create_video(type):
     frameSize = (4000,3000)
     fourcc = cv2.VideoWriter_fourcc(*'MP4V')
     out = cv2.VideoWriter('output.mp4', fourcc, 40, frameSize)
     count = 0
 
-    for filename in sorted(glob.glob('images/*.png')):
+    for filename in sorted(glob.glob(type+'/*.png')):
         img = cv2.imread(filename)
         out.write(img)
         print(filename)
@@ -129,7 +143,11 @@ def create_video():
     print('released')
 
 artists = {}
+albums = {}
+songs = {}
 print("here we go!!")
 #prune_csv()
-#get_data()
-create_video()
+get_data()
+create_video(artists)
+create_video(albums)
+create_video(songs)
