@@ -90,11 +90,12 @@ def get_data():
 
 def export_curr_data(curr_date, curr_tops):
     categories = ['artists', 'albums', 'songs']
-    for i in len(range(categories)):
+    for i in range(len(categories)):
         csvwriter = csv.writer(open('new_year_totals/' + categories[i] + '_' + curr_date + '.csv', "w"))
-        csvwriter.writerow(curr_date)
-        for data in curr_tops[i]:
-            csvwriter.writerow(data)
+        keys = list(curr_tops[i].keys())
+        vals = [float(curr_tops[i][k]) for k in keys]
+        for j in range(len(keys)):
+            csvwriter.writerow([keys[j], vals[j]])
 
 
 def change_date_format(date):
