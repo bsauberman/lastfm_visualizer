@@ -146,7 +146,7 @@ def create_image(type, curr_top, curr_date):
 def create_video(type):
     frameSize = (4000,3000)
     fourcc = cv2.VideoWriter_fourcc(*'MP4V')
-    out = cv2.VideoWriter('output.mp4', fourcc, 40, frameSize)
+    out = cv2.VideoWriter('output_'+type+'.mp4', fourcc, 40, frameSize)
 
     for filename in sorted(glob.glob(type+'/*.png')):
         img = cv2.imread(filename)
@@ -179,11 +179,11 @@ albums = {}
 songs = {}
 print("here we go!!")
 #prune_csv()
-load_data('2020')
+load_data('2022')
 print(artists)
 print(albums)
 print(songs)
-get_data('2020')
+get_data('2022')
 create_video('artists')
 create_video('albums')
 create_video('songs')
